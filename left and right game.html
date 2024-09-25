@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Left & Right Game</title>
+    <link rel="icon" type="image/x-icon" href="icons8-checkmark.svg">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: whitesmoke;
+            height: 100vh;
+            margin: 0;
+            background-image: url('lexus.jpg');
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: cover;
+            background-attachment: fixed;
+        }
+
+        .container {
+            text-align: center;
+        }
+        .timer {
+            border-radius: 5px;
+						width: 50px;
+        }
+        #word-display {
+            font-size: 2em;
+            margin: 0px 0;
+        }
+
+        /* Feedback will be absolutely positioned */
+        #feedback {
+            font-size: 1.5em;
+            position: absolute; /* Positioned absolutely within the game area */
+            bottom: 50px;
+            visibility: hidden; /* Keep feedback hidden until shown */
+        }
+				h1 {
+					text-shadow: 2px 2px 2px black;
+				}
+        #score-display {
+            font-size: 1.2em;
+            color: white; /* Change text color to white */
+						line-height: 30px;
+						margin-top: -30px;
+            text-align: center; /* Center the score display */
+            visibility: hidden; /* Hide until game ends */
+        }
+
+        .correct {
+            color: green;
+        }
+
+        .wrong {
+            color: red;
+        }
+
+        #word-display.correct {
+            background-color: green;
+            color: white;
+        }
+
+        #word-display.wrong {
+            background-color: red;
+            color: white;
+        }
+
+        #question-number {
+            font-size: 1.2em;
+            position: absolute;
+            top: 80px;
+        }
+
+        /* Dedicated game area with fixed height */
+        #game-area {
+            width: 400px;
+            height: 250px;
+            position: relative; /* Position relative for feedback absolute positioning */
+            backdrop-filter: blur(5px); /* Apply blur effect */
+            margin: 20px auto;
+            border: 2px solid #ddd;
+            font-size: 0.9rem;
+            border-radius: 10px;
+            padding: 10px 20px 20px 20px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+
+        button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:focus {
+            outline: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Left or Right Game</h1>
+
+        <label for="timer">Select time (seconds):</label>
+        <select class="timer" id="timer">
+            <option value="5">5</option>
+            <option value="10">10</option>
+            <option value="15">15</option>
+            <option value="20">20</option>
+        </select>
+
+        <div id="game-area">
+            <p id="question-number"></p>
+            <h2 id="word-display">Click "Start Game" to begin</h2>
+
+            <p id="feedback"></p> <!-- Feedback message with absolute positioning -->
+            <div id="score-display"></div> <!-- Score display absolutely positioned -->
+        </div>
+
+        <button id="start-btn">Start Game</button>
+        <button id="reset-btn">Reset</button>
+    </div>
+
+    <script>
+        const wordDisplay = document.getElementById('word-display');
+        const timerSelect = document.getElementById('timer');
+        const resetBtn = document.getElementById('reset-btn');
+        const startBtn = document.getElementById('start-btn');
+        const scoreDisplay = document.getElementById('score-display');
+        const feedbackDisplay = document.getElementById('feedback');
+        const questionNumberDisplay = document.getElementById('question-number');
+
+        let timer, timeLimit, gameInterval, gamePaused = false;
+        let correctCount = 0, totalCount = 0, startTime, totalReactionTime = 0;
+        let currentWord = '', currentQuestionNumber = 0;
+        let words = ['Left', 'Right'];
+        let feedbackTimeout;
+        let gameActive = false; // Track if the game is active or ended
+
+        function getRandomWord() {
+            return words[Math.floor(Math.random() * words.length)];
+        }
+
+        function updateWord() {
+            currentWord = getRandomWord();
+            wordDisplay.textContent = currentWord;
+            wordDisplay.classList.remove('correct', 'wrong'); // Reset word display colors
+            feedbackDisplay.style.visibility = 'hidden'; // Hide feedback to prevent layout changes
+            startTime = new Date().getTime();
+            currentQuestionNumber++;
+            questionNumberDisplay.textContent = `Question ${currentQuestionNumber}`;
+        }
+
+        function showFeedback(message, isCorrect) {
+            clearTimeout(feedbackTimeout); // Clear any previous timeout
+            feedbackDisplay.textContent = message;
+            feedbackDisplay.className = isCorrect ? 'correct' : 'wrong';
+            feedbackDisplay.style.visibility = 'visible'; // Ensure feedback is visible
+
+            // Visually show the correct/incorrect feedback on the word
+            wordDisplay.classList.add(isCorrect ? 'correct' : 'wrong');
+
+            // Hide feedback after a short delay and reset the word display background
+            feedbackTimeout = setTimeout(() => {
+                feedbackDisplay.style.visibility = 'hidden'; // Hide feedback
+                wordDisplay.classList.remove('correct', 'wrong'); // Reset background color
+                updateWord(); // Move to the next word
+            }, 500);
+        }
+
+        function startGame() {
+            if (gameInterval) clearInterval(gameInterval);
+            timeLimit = parseInt(timerSelect.value);
+            resetGame();
+            gameActive = true; // Mark the game as active
+            updateWord(); // Start the first word
+
+            gameInterval = setInterval(() => {
+                if (timeLimit > 0) {
+                    if (!gamePaused) {
+                        timeLimit--;
+                    }
+                } else {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function endGame() {
+            clearInterval(gameInterval);
+            const accuracy = totalCount > 0 ? Math.floor((correctCount / totalCount) * 100) : 0;
+            const averageReactionTime = totalCount > 0 ? (totalReactionTime / totalCount).toFixed(2) : 0;
+            wordDisplay.textContent = 'Game Over';
+            
+            // Hide the word display and question number
+            wordDisplay.style.visibility = 'hidden'; // Hide the word display
+            questionNumberDisplay.style.visibility = 'hidden'; // Hide the question number
+
+            scoreDisplay.innerHTML = `
+                Total Questions: ${totalCount}<br>
+                Accuracy: ${accuracy}%<br>
+                Average Reaction Time: ${averageReactionTime}ms
+            `;
+            scoreDisplay.style.visibility = 'visible'; // Show score display
+            feedbackDisplay.style.visibility = 'hidden'; // Hide feedback
+            gameActive = false; // Mark the game as ended
+        }
+
+        function resetGame() {
+            wordDisplay.textContent = 'Click "Start Game" to begin';
+            wordDisplay.style.visibility = 'visible'; // Show word display on reset
+            questionNumberDisplay.style.visibility = 'visible'; // Show question number on reset
+            scoreDisplay.textContent = '';
+            feedbackDisplay.textContent = '';
+            correctCount = 0;
+            totalCount = 0;
+            totalReactionTime = 0;
+            currentQuestionNumber = 0;
+            questionNumberDisplay.textContent = ''; // Reset question number display
+            clearTimeout(feedbackTimeout); // Clear any remaining feedback
+            feedbackDisplay.style.visibility = 'hidden'; // Hide feedback
+            scoreDisplay.style.visibility = 'hidden'; // Hide score display on reset
+        }
+
+        function handleKeyPress(e) {
+            if (!gameActive || gamePaused || !currentWord) return;
+
+            const reactionTime = new Date().getTime() - startTime;
+            totalCount++;
+
+            let isCorrect = false;
+            if (e.key === 'a' && currentWord === 'Left' || e.key === 'd' && currentWord === 'Right') {
+                correctCount++;
+                totalReactionTime += reactionTime;
+                isCorrect = true;
+            }
+
+            showFeedback(isCorrect ? 'Correct' : 'Wrong', isCorrect);
+        }
+
+        startBtn.addEventListener('click', startGame);
+        resetBtn.addEventListener('click', resetGame);
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'a' || e.key === 'd') {
+                handleKeyPress(e);
+            }
+        });
+				function handleKeyPress(e) {
+    if (!gameActive || gamePaused || !currentWord) return;
+
+    const reactionTime = new Date().getTime() - startTime;
+    totalCount++;
+
+    let isCorrect = false;
+    // Check for A and D keys
+    if ((e.key === 'a' && currentWord === 'Left') || (e.key === 'd' && currentWord === 'Right')) {
+        correctCount++;
+        totalReactionTime += reactionTime;
+        isCorrect = true;
+    }
+    // Check for Arrow keys
+    else if ((e.key === 'ArrowLeft' && currentWord === 'Left') || (e.key === 'ArrowRight' && currentWord === 'Right')) {
+        correctCount++;
+        totalReactionTime += reactionTime;
+        isCorrect = true;
+    }
+
+    showFeedback(isCorrect ? 'Correct' : 'Wrong', isCorrect);
+}
+
+// Event listener for keydown events
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'a' || e.key === 'd' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        handleKeyPress(e);
+    }
+});
+    </script>
+</body>
+</html>
